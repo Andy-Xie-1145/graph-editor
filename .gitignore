@@ -1,0 +1,16 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# ACL recovery artifacts (local)
+../acl-recovery/
+
+# Node (only used for local testing)
+node_modules/
+_package-lock.json
+*.test.tmp.js

@@ -1,0 +1,1968 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图论学习图编辑器</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{
+    --bg:#f1f5f9; --card:#ffffff; --border:#e2e8f0; --text:#0f172a;
+    --muted:#64748b; --blue:#2563eb; --blue-soft:#dbeafe;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--text);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  header{
+    display:flex; flex-direction:column; align-items:stretch; gap:6px; padding:8px 14px;
+    background:var(--card); border-bottom:1px solid var(--border);
+    z-index:10; user-select:none;
+  }
+  .toolbar-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0; }
+  .demo-row{
+    background:#f8fafc; border:1px solid var(--border);
+    border-radius:10px; padding:5px 10px;
+  }
+  .demo-hint{ font-size:12px; color:var(--muted); }
+  .v-sep{ width:1px; height:18px; background:var(--border); margin:0 2px; flex:none; }
+  .brand{ font-weight:700; font-size:15px; white-space:nowrap; margin-right:2px; }
+  .mode-group{
+    display:flex; background:#f1f5f9; border:1px solid var(--border);
+    border-radius:10px; padding:3px; gap:2px;
+  }
+  .mode-btn{
+    border:none; background:transparent; padding:6px 12px; border-radius:8px;
+    font-size:13px; cursor:pointer; color:var(--muted);
+    display:flex; align-items:center; gap:6px; font-family:inherit;
+  }
+  .mode-btn:hover{ color:var(--text); }
+  .mode-btn.active{ background:var(--blue); color:#fff; box-shadow:0 1px 3px rgba(37,99,235,.4); }
+  .algo-btn{ font-weight:600; }
+  .algo-btn.active{ background:#0891b2; box-shadow:0 1px 3px rgba(8,145,178,.4); }
+  .speed-btn{ font-weight:600; font-variant-numeric:tabular-nums; }
+  .speed-btn.active{ background:#059669; box-shadow:0 1px 3px rgba(5,150,105,.4); }
+  .group-label{ font-size:11px; color:var(--muted); margin:0 0 0 6px; }
+  .mode-btn .k{
+    font-size:10px; opacity:.65; border:1px solid currentColor;
+    border-radius:4px; padding:0 4px; line-height:14px;
+  }
+  .tool-btn{
+    border:1px solid var(--border); background:#fff; border-radius:8px;
+    padding:6px 11px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;
+  }
+  .tool-btn:hover{ background:#f8fafc; border-color:#cbd5e1; }
+  .tool-btn:disabled{ opacity:.45; cursor:default; }
+  .tool-btn.danger{ color:#dc2626; border-color:#fecaca; }
+  .tool-btn.danger:hover{ background:#fef2f2; }
+  .switch{
+    display:flex; align-items:center; gap:6px; font-size:13px;
+    color:var(--muted); cursor:pointer; user-select:none;
+  }
+  .switch input{ accent-color:var(--blue); width:15px; height:15px; cursor:pointer; }
+  .spacer{ flex:1; }
+  main#stage{ position:relative; flex:1; overflow:hidden; }
+  canvas{ position:absolute; inset:0; display:block; touch-action:none; }
+
+  #panel{
+    position:absolute; top:12px; right:12px; width:300px;
+    max-height:calc(100% - 24px); overflow:auto;
+    background:rgba(255,255,255,.96); border:1px solid var(--border); border-radius:12px;
+    box-shadow:0 4px 16px rgba(15,23,42,.08); padding:12px 14px; font-size:13px;
+  }
+  #panel.hidden{ display:none; }
+  .panel-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .panel-head button{ border:none; background:none; cursor:pointer; color:var(--muted); font-size:13px; }
+  #panel.editing{ border-color:#f59e0b; box-shadow:0 0 0 2px rgba(245,158,11,.18), 0 4px 16px rgba(15,23,42,.08); }
+  .edit-toggle{
+    display:flex; align-items:center; gap:4px; font-size:12px; color:var(--muted);
+    cursor:pointer; user-select:none; padding:2px 7px; border-radius:6px;
+    border:1px solid var(--border); background:#fff;
+  }
+  .edit-toggle:hover{ border-color:#f59e0b; color:var(--text); }
+  .edit-toggle input{ accent-color:#f59e0b; margin:0; cursor:pointer; }
+  .edit-tip{
+    font-size:11.5px; color:#92400e; background:#fef3c7;
+    border-radius:6px; padding:4px 8px; margin-bottom:6px; line-height:1.5;
+  }
+  table.matrix th{ white-space:nowrap; }
+  table.matrix td.cell-edit{ cursor:pointer; }
+  table.matrix td.cell-edit:hover{ background:#fef3c7; }
+  .matrix-cell-input{
+    width:44px; border:1px solid var(--blue); border-radius:4px; text-align:center;
+    font-size:12px; padding:1px 2px; font-family:inherit; outline:none;
+  }
+  .label-input{
+    width:34px; border:1px solid var(--border); border-radius:4px; text-align:center;
+    font-size:12px; padding:1px 2px; font-family:inherit; outline:none;
+  }
+  .label-input:focus{ border-color:var(--blue); }
+  .mini-btn{
+    border:1px solid var(--border); background:#fff; border-radius:5px; cursor:pointer;
+    font-size:11px; padding:0 4px; margin-left:3px; color:var(--muted); line-height:16px;
+  }
+  .mini-btn:hover{ background:#fef2f2; border-color:#fecaca; color:#dc2626; }
+  .edge-edit{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  .edge-edit .arrow{ color:var(--muted); }
+  .edge-edit select, .edge-edit .weight-input{
+    font-size:12px; padding:2px 3px; border:1px solid var(--border); border-radius:5px;
+    font-family:inherit; background:#fff; max-width:70px;
+  }
+  .edge-edit .weight-input{ width:52px; }
+  .edge-edit select:focus, .edge-edit .weight-input:focus{ border-color:var(--blue); outline:none; }
+  .add-edge-row{ display:flex; gap:4px; align-items:center; margin-top:8px; flex-wrap:wrap; font-size:12px; color:var(--muted); }
+  .add-edge-row select, .add-edge-row .weight-input{
+    font-size:12px; padding:2px 3px; border:1px solid var(--border); border-radius:5px;
+    font-family:inherit; background:#fff; max-width:70px;
+  }
+  .add-edge-row .weight-input{ width:46px; }
+  .stats{ color:var(--muted); margin-bottom:8px; }
+  .sec-title{ font-weight:700; margin:10px 0 6px; display:flex; justify-content:space-between; align-items:center; }
+  .sec-title label{ font-weight:400; font-size:12px; color:var(--muted); display:flex; gap:4px; align-items:center; cursor:pointer; }
+  table.matrix{ border-collapse:collapse; font-size:12px; }
+  table.matrix th, table.matrix td{
+    border:1px solid var(--border); padding:3px 7px; text-align:center; min-width:28px;
+  }
+  table.matrix th{ background:#f8fafc; font-weight:600; }
+  table.matrix td{ color:#334155; font-variant-numeric:tabular-nums; }
+  ul.edge-list{ list-style:none; display:flex; flex-direction:column; gap:4px; }
+  ul.edge-list li{
+    display:flex; justify-content:space-between; background:#f8fafc;
+    border:1px solid var(--border); border-radius:6px; padding:4px 8px;
+    font-variant-numeric:tabular-nums;
+  }
+  ul.edge-list .w{ color:var(--muted); }
+  .empty{ color:var(--muted); font-size:12px; padding:6px 0; }
+
+  #hint{
+    position:absolute; left:50%; bottom:14px; transform:translateX(-50%);
+    background:rgba(255,255,255,.94); border:1px solid var(--border); border-radius:10px;
+    padding:8px 14px; font-size:12.5px; color:var(--muted);
+    box-shadow:0 2px 10px rgba(15,23,42,.06);
+    max-width:min(92%, 800px); text-align:center; pointer-events:none;
+  }
+  #hint b{ color:var(--text); margin-right:4px; }
+  #traversalChip{
+    position:absolute; top:12px; left:12px; background:#1e293b; color:#e2e8f0;
+    padding:7px 12px; border-radius:8px; font-size:12.5px;
+    box-shadow:0 4px 14px rgba(15,23,42,.25); max-width:70%;
+  }
+  #toasts{
+    position:absolute; right:14px; bottom:14px; display:flex; flex-direction:column;
+    gap:8px; align-items:flex-end; pointer-events:none;
+  }
+  .toast{
+    background:#1e293b; color:#f1f5f9; font-size:12.5px; padding:8px 13px;
+    border-radius:8px; opacity:0; transform:translateY(6px);
+    transition:all .25s ease; box-shadow:0 4px 14px rgba(15,23,42,.3);
+  }
+  .toast.show{ opacity:1; transform:none; }
+
+  #editor{
+    position:absolute; z-index:20; background:#fff; border:1px solid var(--border);
+    border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.16); padding:10px; width:190px;
+  }
+  #editor label{ display:block; font-size:11.5px; color:var(--muted); margin-bottom:6px; }
+  #editor input{
+    width:100%; border:1px solid var(--border); border-radius:7px;
+    padding:6px 8px; font-size:14px; outline:none; font-family:inherit;
+  }
+  #editor input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft); }
+  .editor-actions{ display:flex; gap:6px; justify-content:flex-end; margin-top:8px; }
+  .editor-actions button{
+    font-size:12.5px; padding:5px 12px; border-radius:7px; cursor:pointer;
+    border:1px solid var(--border); background:#fff; font-family:inherit;
+  }
+  .editor-actions .primary{ background:var(--blue); border-color:var(--blue); color:#fff; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="toolbar-row">
+    <div class="brand">📐 图论图编辑器</div>
+    <span class="group-label">模式</span>
+    <div class="mode-group" id="modeGroup">
+      <button class="mode-btn active" data-mode="view"><span class="k">1</span>👁 查看</button>
+      <button class="mode-btn" data-mode="draw"><span class="k">2</span>➕ 绘画</button>
+      <button class="mode-btn" data-mode="edit"><span class="k">3</span>✏️ 编辑</button>
+      <button class="mode-btn" data-mode="delete"><span class="k">4</span>🗑️ 删除</button>
+    </div>
+    <span class="v-sep"></span>
+    <button id="layoutBtn" class="tool-btn" title="重新自动排列所有节点">⤢ 自动布局</button>
+    <button id="undoBtn" class="tool-btn" title="Ctrl+Z">↶ 撤销</button>
+    <button id="redoBtn" class="tool-btn" title="Ctrl+Y">↷ 重做</button>
+    <span class="v-sep"></span>
+    <label class="switch"><input type="checkbox" id="directedToggle"><span>有向图</span></label>
+    <span class="spacer"></span>
+    <button id="sampleBtn" class="tool-btn">示例</button>
+    <button id="importBtn" class="tool-btn">导入</button>
+    <button id="exportBtn" class="tool-btn">导出</button>
+    <button id="clearBtn" class="tool-btn danger">清空</button>
+    <button id="panelBtn" class="tool-btn">面板</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+  </div>
+  <div class="toolbar-row demo-row">
+    <span class="group-label" style="margin:0;">算法</span>
+    <div class="mode-group" id="algoGroup">
+      <button class="mode-btn algo-btn active" data-algo="bfs" title="宽度优先遍历">BFS</button>
+      <button class="mode-btn algo-btn" data-algo="dfs" title="深度优先遍历">DFS</button>
+      <button class="mode-btn algo-btn" data-algo="dijkstra" title="Dijkstra 最短路（非负权）">Dijkstra</button>
+      <button class="mode-btn algo-btn" data-algo="spfa" title="SPFA 最短路（支持负权）">SPFA</button>
+    </div>
+    <span class="group-label" style="margin:0;">速度</span>
+    <div class="mode-group" id="speedGroup">
+      <button class="mode-btn speed-btn" data-speed="1">1×</button>
+      <button class="mode-btn speed-btn" data-speed="2">2×</button>
+      <button class="mode-btn speed-btn active" data-speed="4">4×</button>
+      <button class="mode-btn speed-btn" data-speed="16" title="极速">⚡16×</button>
+    </div>
+    <button id="skipBtn" class="tool-btn" title="立即完成当前演示，直接显示结果">⏭ 结尾</button>
+    <span class="spacer"></span>
+    <span class="demo-hint">选择算法后单击节点运行 · 最短路再单击终点 · Esc 取消</span>
+  </div>
+</header>
+
+<main id="stage">
+  <canvas id="canvas"></canvas>
+
+  <aside id="panel">
+    <div class="panel-head">
+      <b>图信息</b>
+      <span style="display:flex; align-items:center; gap:6px;">
+        <label class="edit-toggle" title="开启后面板可直接编辑（矩阵、边列表、节点），所有改动可 Ctrl+Z 撤销">
+          <input type="checkbox" id="panelEditToggle">✏️ 快速编辑
+        </label>
+        <button id="panelClose" title="收起">✕</button>
+      </span>
+    </div>
+    <div class="edit-tip" id="editTip" hidden>编辑已开启：点击矩阵格改权重（0 或清空 = 删边，对角线 = 自环）；列标题可重命名 / 删除节点；下方边列表可增删改。</div>
+    <div class="stats" id="stats"></div>
+    <div class="sec-title">邻接矩阵
+      <label><input type="checkbox" id="wToggle" checked>显示权重</label>
+    </div>
+    <div id="matrixWrap"></div>
+    <div class="sec-title">边列表</div>
+    <ul class="edge-list" id="edgeList"></ul>
+  </aside>
+
+  <div id="traversalChip" hidden></div>
+  <div id="hint"></div>
+  <div id="toasts"></div>
+
+  <div id="editor" hidden>
+    <label id="editorTitle"></label>
+    <input id="editorInput" autocomplete="off" spellcheck="false">
+    <div class="editor-actions">
+      <button id="editorCancel">取消</button>
+      <button id="editorOk" class="primary">确定</button>
+    </div>
+  </div>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+/* ==================== DOM ==================== */
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const stage = document.getElementById('stage');
+const hintEl = document.getElementById('hint');
+const chipEl = document.getElementById('traversalChip');
+const toastsEl = document.getElementById('toasts');
+const panelEl = document.getElementById('panel');
+const statsEl = document.getElementById('stats');
+const matrixWrapEl = document.getElementById('matrixWrap');
+const edgeListEl = document.getElementById('edgeList');
+const editorEl = document.getElementById('editor');
+const editorTitleEl = document.getElementById('editorTitle');
+const editorInputEl = document.getElementById('editorInput');
+const directedToggleEl = document.getElementById('directedToggle');
+const undoBtn = document.getElementById('undoBtn');
+const redoBtn = document.getElementById('redoBtn');
+
+/* ==================== 常量 ==================== */
+const NODE_R = 22;          // 节点半径（世界坐标）
+const ARROW_LEN = 11;       // 箭头长度
+const LOOP_R = 15;          // 自环半径
+const STORAGE_KEY = 'graph-editor-v1';
+const UNDO_LIMIT = 100;
+
+/* ==================== 图数据 ==================== */
+let nodes = [];   // { id, label, x, y }   x/y 为世界坐标
+let edges = [];   // { id, from, to, weight }
+let directed = false;
+let idNode = 1, idEdge = 1;
+
+/* ==================== UI 状态 ==================== */
+let mode = 'view';                    // view | draw | edit | delete
+let view = { x: 0, y: 0, scale: 1 };  // 屏幕 = 世界 * scale + 平移
+let hover = null;                     // { type:'node'|'edge', id }
+let drag = null;                      // 当前拖拽/点击手势
+let forceSleeping = true;             // 力导向模拟休眠标志（布局稳定后暂停计算）
+let calmFrames = 0;                   // 连续低速帧计数（满足后休眠）
+let interactHoldUntil = 0;            // 平移/缩放后暂缓模拟的时间点，避免与用户导航打架
+let traversal = null;                 // 遍历/最短路演示状态
+let pendingShortest = null;           // 等待选择终点的最短路请求 { startId, algo }
+let algo = 'bfs';                     // 当前选中的演示算法（工具栏选择）
+let playSpeed = 4;                    // 动画播放速度倍率
+let showWeights = true;
+let panelEdit = false;                // “图信息”面板快速编辑开关（默认锁定）
+let editorCtx = null;
+const undoStack = [], redoStack = [];
+
+/* ==================== 小工具 ==================== */
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtW(w){
+  const n = Number(w);
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+}
+function distToSeg(p, a, b){
+  const vx = b.x - a.x, vy = b.y - a.y;
+  const L2 = vx * vx + vy * vy;
+  if (L2 === 0) return dist(p, a);
+  let t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / L2;
+  t = clamp(t, 0, 1);
+  return Math.hypot(p.x - (a.x + t * vx), p.y - (a.y + t * vy));
+}
+function nodeById(id){ return nodes.find(n => n.id === id); }
+function edgeById(id){ return edges.find(e => e.id === id); }
+function nodeLabel(id){ const n = nodeById(id); return n ? n.label : '?'; }
+function w2s(p){ return { x: p.x * view.scale + view.x, y: p.y * view.scale + view.y }; }
+function s2w(p){ return { x: (p.x - view.x) / view.scale, y: (p.y - view.y) / view.scale }; }
+function getSp(e){
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+function toast(msg){
+  const d = document.createElement('div');
+  d.className = 'toast';
+  d.textContent = msg;
+  toastsEl.appendChild(d);
+  requestAnimationFrame(() => d.classList.add('show'));
+  setTimeout(() => { d.classList.remove('show'); setTimeout(() => d.remove(), 300); }, 1900);
+}
+
+/* ==================== 序列化 / 撤销 ==================== */
+function serialize(){
+  // 只导出图数据本身；剥离力引擎的速度草稿字段（vx/vy），fixed 是用户标记故保留
+  const cleanNodes = nodes.map(n => ({ id: n.id, label: n.label, x: n.x, y: n.y, fixed: !!n.fixed }));
+  return JSON.stringify({ v: 1, directed, idNode, idEdge, nodes: cleanNodes, edges });
+}
+function applyData(data){
+  nodes = Array.isArray(data.nodes) ? data.nodes : [];
+  // 防御：过滤端点不存在的“幽灵边”（可自动修复旧版本存档中的坏数据）
+  const ids = new Set(nodes.map(n => n.id));
+  edges = (Array.isArray(data.edges) ? data.edges : []).filter(e => e && ids.has(e.from) && ids.has(e.to));
+  directed = !!data.directed;
+  idNode = data.idNode || (nodes.reduce((m, n) => Math.max(m, n.id || 0), 0) + 1);
+  idEdge = data.idEdge || (edges.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1);
+  directedToggleEl.checked = directed;
+  drag = null;
+  wakeForce();
+  afterChange();
+}
+function pushUndo(){
+  undoStack.push(serialize());
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  redoStack.length = 0;
+  updateUndoBtns();
+}
+function doUndo(){
+  if (!undoStack.length) return;
+  redoStack.push(serialize());
+  applyData(JSON.parse(undoStack.pop()));
+  saveLocal();
+  updateUndoBtns();
+  toast('已撤销');
+}
+function doRedo(){
+  if (!redoStack.length) return;
+  undoStack.push(serialize());
+  applyData(JSON.parse(redoStack.pop()));
+  saveLocal();
+  updateUndoBtns();
+  toast('已重做');
+}
+function updateUndoBtns(){
+  undoBtn.disabled = !undoStack.length;
+  redoBtn.disabled = !redoStack.length;
+}
+
+/* ==================== 本地保存 ==================== */
+function saveLocal(){
+  try { localStorage.setItem(STORAGE_KEY, serialize()); } catch (e) { /* 忽略 */ }
+}
+function loadLocal(){
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (!s) return false;
+    const d = JSON.parse(s);
+    if (!d || !Array.isArray(d.nodes)) return false;
+    applyData(d);
+    return true;
+  } catch (e) { return false; }
+}
+
+/* ==================== 图操作（GraphStore：所有变更的唯一入口） ====================
+   commit(mutator) 收拢「快照 → 变异 → 通知」三段式仪式：
+   历史上 11 处 pushUndo 与 11 处 afterChange 靠人工配对，漏配即生 bug
+   （afterChange 漏 wakeForce、非法输入误删边均发生在此接缝）。 */
+function afterChange(){
+  hover = null;
+  pendingShortest = null;   // 任何图变更后取消未完成的最短路选点（防悬空引用）
+  clearTraversal();
+  wakeForce();          // 图结构变化后唤醒自动布局（面板/画布/撤销均经过此处）
+  queuePanelRefresh();  // 面板重建推迟到事件循环空隙，避免吃掉进行中的点击/编辑
+  saveLocal();
+}
+function commit(mutator){
+  pushUndo();
+  const r = mutator();
+  afterChange();
+  return r;
+}
+function nextAutoLabel(){
+  let mx = -1;
+  for (const n of nodes){
+    const v = parseInt(n.label, 10);
+    if (Number.isFinite(v) && v > mx) mx = v;
+  }
+  return mx + 1;
+}
+function addNodeAt(worldP){
+  const n = { id: idNode, label: String(nextAutoLabel()), x: worldP.x, y: worldP.y };
+  idNode++;
+  commit(() => { nodes.push(n); });
+  return n;
+}
+function edgeExists(a, b){
+  if (directed || a === b) return edges.some(e => e.from === a && e.to === b);
+  return edges.some(e => (e.from === a && e.to === b) || (e.from === b && e.to === a));
+}
+function addEdge(a, b, weight = 1){
+  if (edgeExists(a, b)){ toast('这两个节点之间已存在边'); return null; }
+  const e = { id: idEdge, from: a, to: b, weight };
+  idEdge++;
+  commit(() => { edges.push(e); });
+  return e;
+}
+function deleteNode(id){
+  const n = nodeById(id); if (!n) return;
+  const cnt = edges.filter(e => e.from === id || e.to === id).length;
+  commit(() => {
+    nodes = nodes.filter(x => x.id !== id);
+    edges = edges.filter(e => e.from !== id && e.to !== id);
+  });
+  toast(`已删除节点 ${n.label}` + (cnt ? ` 及 ${cnt} 条关联边` : ''));
+}
+function deleteEdge(id){
+  const e = edgeById(id); if (!e) return;
+  commit(() => { edges = edges.filter(x => x.id !== id); });
+  toast('已删除边');
+}
+function setDirected(v){
+  if (directed === v) return;
+  let merged = 0;
+  commit(() => {
+    directed = v;
+    if (!v){
+      // 有向→无向：合并互为反向的重复边（保留权重较小的一条），避免画布/矩阵/编辑语义混乱
+      const kept = [];
+      for (const e of edges){
+        if (e.from === e.to){ kept.push(e); continue; }
+        const dup = kept.find(k => k.from === e.to && k.to === e.from);
+        if (dup){
+          if (e.weight < dup.weight) dup.weight = e.weight;
+          merged++;
+        } else kept.push(e);
+      }
+      edges = kept;
+    }
+    directedToggleEl.checked = directed;
+  });
+  if (merged) toast(`已合并 ${merged} 组双向重复边（保留较小权重）`);
+}
+function clearAll(){
+  commit(() => { nodes = []; edges = []; });
+  toast('已清空画布');
+}
+
+/* ==================== 悬浮编辑器（编号/权重） ==================== */
+function openEditor(opt){
+  editorCtx = opt;
+  editorTitleEl.textContent = opt.title;
+  editorInputEl.value = opt.value;
+  if (opt.maxLength) editorInputEl.maxLength = opt.maxLength;
+  else editorInputEl.removeAttribute('maxlength');
+  editorEl.hidden = false;
+  // 定位（相对 stage），并夹在可视范围内
+  const cw = stage.clientWidth, ch = stage.clientHeight;
+  const ew = editorEl.offsetWidth, eh = editorEl.offsetHeight;
+  const x = clamp(opt.pos.x + 16, 8, Math.max(8, cw - ew - 8));
+  const y = clamp(opt.pos.y - 20, 8, Math.max(8, ch - eh - 8));
+  editorEl.style.left = x + 'px';
+  editorEl.style.top = y + 'px';
+  editorInputEl.focus();
+  editorInputEl.select();
+}
+function closeEditor(){ editorEl.hidden = true; editorCtx = null; }
+let lastEditorCommitAt = 0;   // 防重入：pointerdown 提交与失焦兜底提交相隔极近时只算一次
+function commitEditor(){
+  if (!editorCtx) return;
+  const now = performance.now();
+  if (now - lastEditorCommitAt < 120) return;
+  lastEditorCommitAt = now;
+  const ok = editorCtx.onOK(editorInputEl.value);
+  if (ok !== false) closeEditor();
+}
+function commitEditorIfOpen(){ if (editorCtx) commitEditor(); }
+
+function openNodeEditor(id){
+  const n = nodeById(id); if (!n) return;
+  openEditor({
+    title: '节点编号',
+    value: n.label,
+    maxLength: 12,
+    pos: w2s(n),
+    onOK(v){
+      v = v.trim();
+      if (!v){ toast('编号不能为空'); return false; }
+      if (v !== n.label){
+        commit(() => { n.label = v; });
+        toast('编号已更新');
+      }
+      return true;
+    }
+  });
+}
+function openEdgeEditor(id){
+  const e = edgeById(id); if (!e) return;
+  const mid = edgeLabelPos(e);
+  const name = e.from === e.to
+    ? `自环（节点 ${nodeLabel(e.from)}）`
+    : directed ? `边 ${nodeLabel(e.from)} → ${nodeLabel(e.to)}`
+               : `边 ${nodeLabel(e.from)} — ${nodeLabel(e.to)}`;
+  openEditor({
+    title: name + ' 的权重',
+    value: String(e.weight),
+    pos: w2s(mid),
+    onOK(v){
+      const w = parseFloat(v);
+      if (!Number.isFinite(w)){ toast('请输入有效数字'); return false; }
+      if (w !== e.weight){
+        commit(() => { e.weight = w; });
+      }
+      toast('权重已更新');
+      return true;
+    }
+  });
+}
+
+/* ==================== 命中检测 ==================== */
+function nodeAt(wp){
+  for (let i = nodes.length - 1; i >= 0; i--){
+    const n = nodes[i];
+    const dx = wp.x - n.x, dy = wp.y - n.y;
+    if (dx * dx + dy * dy <= (NODE_R + 5) * (NODE_R + 5)) return n;
+  }
+  return null;
+}
+function loopCenter(n){ return { x: n.x, y: n.y - (NODE_R + LOOP_R) }; }
+function edgeAt(wp){
+  const thr = 9 / view.scale;
+  for (const e of edges){
+    if (e.from === e.to){
+      const C = loopCenter(nodeById(e.from));
+      if (C && Math.abs(Math.hypot(wp.x - C.x, wp.y - C.y) - LOOP_R) <= thr) return e;
+    } else {
+      const a = nodeById(e.from), b = nodeById(e.to);
+      if (a && b && distToSeg(wp, a, b) <= thr + 2) return e;
+    }
+  }
+  return null;
+}
+function updateHover(wp){
+  const n = nodeAt(wp);
+  if (n){ hover = { type: 'node', id: n.id }; return; }
+  const e = edgeAt(wp);
+  hover = e ? { type: 'edge', id: e.id } : null;
+}
+
+/* ==================== 指针交互 ==================== */
+function onDown(e){
+  commitEditorIfOpen();
+  if (drag) return;                       // 忽略多点触控的第二根手指
+  const sp = getSp(e), wp = s2w(sp);
+  if (e.button === 1){                    // 中键：平移
+    drag = { kind: 'pan', sp0: sp, view0: { ...view }, moved: false };
+    canvas.setPointerCapture(e.pointerId);
+    updateCursor();
+    return;
+  }
+  if (e.button === 2){                    // 右键：节点上单击 = 固定/取消固定；按住拖动 = 平移
+    const hitR = nodeAt(wp);
+    drag = {
+      kind: hitR ? 'maybe-pin' : 'pan',
+      id: hitR ? hitR.id : undefined,
+      sp0: sp, view0: { ...view }, moved: false
+    };
+    canvas.setPointerCapture(e.pointerId);
+    updateCursor();
+    return;
+  }
+  if (e.button !== 0) return;
+  const hitN = nodeAt(wp);
+  switch (mode){
+    case 'view':
+      if (hitN){
+        wakeForce();                          // 拖拽期间其余节点实时让位
+        drag = { kind: 'node', id: hitN.id, off: { x: hitN.x - wp.x, y: hitN.y - wp.y }, sp0: sp, moved: false };
+      } else {
+        drag = { kind: 'pan', sp0: sp, view0: { ...view }, moved: false };
+      }
+      break;
+    case 'draw':
+      if (hitN){
+        drag = { kind: 'link', from: hitN.id, sp0: sp, cur: wp, moved: false, exited: false };
+      } else {
+        drag = { kind: 'maybe-node', sp0: sp, wp, moved: false };
+      }
+      break;
+    case 'edit':
+    case 'delete':
+      drag = { kind: 'click', sp0: sp, wp, moved: false };
+      break;
+  }
+  canvas.setPointerCapture(e.pointerId);
+  updateCursor();
+}
+function onMove(e){
+  const sp = getSp(e), wp = s2w(sp);
+  if (drag){
+    switch (drag.kind){
+      case 'pan':
+        view.x = drag.view0.x + (sp.x - drag.sp0.x);
+        view.y = drag.view0.y + (sp.y - drag.sp0.y);
+        if (dist(sp, drag.sp0) > 4) drag.moved = true;
+        break;
+      case 'node': {
+        const n = nodeById(drag.id);
+        if (n){ n.x = wp.x + drag.off.x; n.y = wp.y + drag.off.y; }
+        if (dist(sp, drag.sp0) > 4) drag.moved = true;
+        break;
+      }
+      case 'link': {
+        drag.cur = wp; drag.moved = true;
+        const s = nodeById(drag.from);
+        if (s && dist(wp, s) > NODE_R * 1.6) drag.exited = true;
+        break;
+      }
+      case 'maybe-node':
+        if (dist(sp, drag.sp0) > 4) drag.moved = true;
+        break;
+      case 'maybe-pin':
+        if (dist(sp, drag.sp0) > 4){
+          drag.moved = true;
+          drag.kind = 'pan';   // 右键在节点上按住拖动 = 平移画布（消除死区；view0 按下时已捕获）
+        }
+        break;
+      case 'click':
+        if (dist(sp, drag.sp0) > 5) drag.moved = true;
+        break;
+    }
+  } else {
+    updateHover(wp);
+  }
+  updateCursor();
+}
+function onUp(e){
+  if (!drag) return;
+  const d = drag; drag = null;
+  const sp = getSp(e), wp = s2w(sp);
+  switch (d.kind){
+    case 'pan':
+      if (!d.moved){
+        if (pendingShortest){
+          pendingShortest = null;
+          clearTraversal();
+          toast('已取消最短路');
+        } else {
+          clearTraversal();                   // 点击空白取消遍历高亮
+        }
+      } else { wakeForce(); holdForce(700); } // 平移结束后稍候恢复自动布局（重新居中）
+      break;
+    case 'maybe-pin':                       // 右键单击：固定/取消固定
+      if (!d.moved){
+        const nd = nodeById(d.id);
+        if (nd){
+          nd.fixed = !nd.fixed;
+          saveLocal();
+          wakeForce();
+          toast(nd.fixed ? `已固定节点 ${nd.label}（右键可取消）` : `已取消固定节点 ${nd.label}`);
+        }
+      }
+      break;
+    case 'node':
+      saveLocal();                          // 保存拖拽后的位置
+      if (mode === 'view' && !d.moved){
+        if (pendingShortest){               // 最短路：选终点
+          const p = pendingShortest;
+          pendingShortest = null;
+          startTraversal(p.startId, p.algo, d.id);
+        } else if (algo === 'dijkstra' || algo === 'spfa'){
+          pendingShortest = { startId: d.id, algo };   // 最短路：先选起点，再单击终点
+          clearTraversal();
+          chipEl.hidden = false;
+          chipEl.textContent = `${algo === 'dijkstra' ? 'Dijkstra' : 'SPFA'}：起点 ${nodeLabel(d.id)}，请单击终点节点（Esc 或单击空白取消）`;
+          toast('最短路：请单击终点节点');
+        } else {
+          startTraversal(d.id, algo, null); // BFS / DFS 直接播放
+        }
+      } else if (d.moved){
+        wakeForce();                        // 松手后节点被自动拉回对齐位置
+      }
+      break;
+    case 'link': {
+      const target = nodeAt(wp);
+      if (target && target.id !== d.from){
+        const ne = addEdge(d.from, target.id);
+        if (ne) openEdgeEditor(ne.id);      // 画完边立刻可填权重（回车确认，Esc 保持默认 1）
+      } else if (target && target.id === d.from && d.exited){
+        const ne = addEdge(d.from, d.from); // 拖出去又拖回来 = 自环
+        if (ne) openEdgeEditor(ne.id);
+      }
+      break;
+    }
+    case 'maybe-node':
+      if (!d.moved){
+        const n = addNodeAt(wp);
+        toast(`已创建节点 ${n.label}`);
+      }
+      break;
+    case 'click':
+      if (!d.moved) handleClick(wp);
+      break;
+  }
+  updateHover(wp);
+  updateCursor();
+}
+function handleClick(wp){
+  const n = nodeAt(wp);
+  if (mode === 'edit'){
+    if (n) openNodeEditor(n.id);
+    else { const e2 = edgeAt(wp); if (e2) openEdgeEditor(e2.id); }
+  } else if (mode === 'delete'){
+    if (n) deleteNode(n.id);
+    else { const e2 = edgeAt(wp); if (e2) deleteEdge(e2.id); }
+  }
+}
+canvas.addEventListener('pointerdown', onDown);
+canvas.addEventListener('pointermove', onMove);
+canvas.addEventListener('pointerup', onUp);
+canvas.addEventListener('pointercancel', () => { drag = null; updateCursor(); });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+/* 滚轮缩放（以光标为中心） */
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const sp = getSp(e);
+  const factor = Math.exp(-e.deltaY * 0.0012);
+  const ns = clamp(view.scale * factor, 0.25, 3);
+  view.x = sp.x - (sp.x - view.x) / view.scale * ns;
+  view.y = sp.y - (sp.y - view.y) / view.scale * ns;
+  view.scale = ns;
+  wakeForce();
+  holdForce(900);       // 缩放结束后稍候恢复自动布局
+}, { passive: false });
+
+/* ==================== 模式切换 ==================== */
+const HINTS = {
+  view:   '<b>👁 查看模式</b>节点自动居中布局 · 拖拽移动，松手自动归位 · 右键单击节点 = 固定/取消固定 · 上方选择算法后<b>单击节点</b>：BFS / DFS 立即播放；Dijkstra / SPFA 再单击终点 · Esc 取消 · 滚轮缩放',
+  draw:   '<b>➕ 绘画模式</b>点击空白处新建节点 · 从一个节点拖到另一个节点新建边（拖出又拖回同一节点 = 自环）· 右键拖动可平移画布',
+  edit:   '<b>✏️ 编辑模式</b>点击节点修改编号 · 点击边修改权重',
+  delete: '<b>🗑️ 删除模式</b>点击节点或边将其删除 · Ctrl+Z 可撤销',
+};
+function setMode(m){
+  if (!(m in HINTS)) return;   // 防御：未知模式直接忽略（避免误伤时把状态搞坏）
+  mode = m;
+  closeEditor();
+  drag = null;
+  pendingShortest = null;
+  clearTraversal();
+  document.querySelectorAll('#modeGroup .mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === m));
+  hintEl.innerHTML = HINTS[m];
+  if (m === 'view') wakeForce();   // 查看模式：节点持续自动居中布局
+  updateCursor();
+}
+/* 按钮组适配器：独占高亮 + 点击回调一处实现。
+   （历史上三组按钮共用 .mode-btn CSS 类兼作行为选择器，querySelectorAll 误伤导致
+   setMode(undefined) 搞坏模式状态——样式类不再兼做行为接口。） */
+function bindGroup(containerId, onPick){
+  const btns = [...document.querySelectorAll(`#${containerId} button`)];
+  btns.forEach(b => b.addEventListener('click', () => {
+    btns.forEach(x => x.classList.toggle('active', x === b));
+    onPick(b);
+    b.blur();
+  }));
+  return btns;
+}
+bindGroup('modeGroup', b => setMode(b.dataset.mode));
+bindGroup('algoGroup', b => {
+  algo = b.dataset.algo;
+  pendingShortest = null;
+  clearTraversal();
+  setMode('view');                 // 选算法即自动回到查看模式，立刻可用
+  toast(`已选算法：${b.textContent} — 单击节点运行`);
+});
+bindGroup('speedGroup', b => {
+  playSpeed = Number(b.dataset.speed) || 1;
+  if (traversal && traversal.timer){                    // 运行中调速：重启计时器
+    clearInterval(traversal.timer);
+    traversal.timer = setInterval(stepTraversal, intervalDelay());
+  }
+  toast(`播放速度：${playSpeed}×`);
+});
+document.getElementById('skipBtn').addEventListener('click', e => {
+  if (traversal){                                         // 一键跳到结尾，立即显示结果
+    let g = 0;
+    while (traversal && !traversal.finished && g++ < 500000) stepTraversal();
+  }
+  e.target.blur();
+});
+
+function updateCursor(){
+  let c = 'default';
+  if (drag){
+    if (drag.kind === 'pan' || drag.kind === 'node' || drag.kind === 'maybe-pin') c = 'grabbing';
+    else if (drag.kind === 'link' || drag.kind === 'maybe-node') c = 'crosshair';
+    else if (drag.kind === 'click') c = 'pointer';
+  } else if (mode === 'view'){
+    c = hover && hover.type === 'node' ? 'grab' : 'default';
+  } else if (mode === 'draw'){
+    c = 'crosshair';
+  } else {
+    c = hover ? 'pointer' : 'default';
+  }
+  canvas.style.cursor = c;
+}
+
+/* ==================== 查看模式：连续力导向自动布局 ====================
+   自研实现，设计上杜绝“节点被斥力崩飞再弹回来”：
+   1) 近距离斥力截断 + 单对斥力限幅 + 单节点合力限幅 —— 力永远有界；
+   2) 速度阻尼 + 每帧位移上限 —— 节点每帧最多移动几个像素，不可能弹射；
+   3) 可视区软边界力 —— 越出画面的节点会被轻轻拉回；
+   4) 向心引力使布局时刻居中；布局稳定后自动休眠，交互时立即唤醒。
+   稠密图优化（减少边交叉、节点均匀分布）：
+   A) 边-边中点斥力 —— 引导边互相避开；
+   B) 相邻/非相邻节点差异斥力 —— 相连的靠近成簇，簇间自然分离；
+   C) 长程 1/d 斥力 + 最近间距强分离 —— 节点分布均匀、不扎堆；
+   D) 理想边距随稠密度自适应拉长，给边留出空间。 */
+const FORCE_CFG = {
+  spring: 0.06,     // 弹簧刚度（连通节点靠拢到理想长度）
+  repAdj: 1.4,      // 相邻节点对斥力（允许较近，形成簇）
+  repNon: 2.4,      // 非相邻节点对斥力（更大，簇间分离、交叉更少）
+  minSep: 0.60,     // 最近间距（× 理想长度），低于此强推分离
+  minSepK: 0.12,    // 最近间距恢复力系数
+  edgeRep: 0.9,     // 边-边斥力系数（减少边交叉）
+  edgeRange: 1.3,   // 边-边斥力作用范围（× 理想长度）
+  center: 0.008,    // 向画布中心的引力系数（保证时刻居中）
+  damp: 0.82,       // 速度阻尼（消耗能量，避免振荡）
+  maxV: 7,          // 每帧最大位移（世界坐标）
+  maxF: 12          // 单节点合力上限
+};
+function wakeForce(){ forceSleeping = false; forceScale = 1; calmFrames = 0; forceSteps = 0; }
+function holdForce(ms = 800){ interactHoldUntil = performance.now() + ms; }
+function intervalDelay(){ return Math.max(30, Math.round(330 / playSpeed)); }
+function forceIdealLength(){
+  const cw = canvas.clientWidth || 900, ch = canvas.clientHeight || 600;
+  const world = Math.sqrt((cw / view.scale) * (ch / view.scale));
+  const n = Math.max(nodes.length, 1);
+  const m = edges.filter(e => e.from !== e.to && nodeById(e.from) && nodeById(e.to)).length;
+  const density = m / Math.max(1, n * (n - 1) / 2);           // 稠密度 0~1
+  const base = world / Math.sqrt(n) * 0.35;
+  return clamp(base * (1 + Math.min(density, 0.6) * 0.9), 70, 230);   // 越稠密边距越长
+}
+let edgePairPhase = 0;   // 大图上边-边斥力分帧计算，保证帧率
+const forceVel = new Map();   // 引擎私有速度向量（nodeId -> {vx,vy}）：不再往图数据对象上糊草稿字段
+let forceScale = 1;      // 退火系数：接近稳定后整体衰减所有力，使布局完全静止
+let forceSteps = 0;      // 唤醒以来已运行的帧数（退火前需先全力演化一段时间）
+function stepForce(){
+  const n = nodes.length;
+  const cw = canvas.clientWidth || 900, ch = canvas.clientHeight || 600;
+  const cx = (cw / 2 - view.x) / view.scale;      // 视口中心（世界坐标）
+  const cy = (ch / 2 - view.y) / view.scale;
+  const ideal = forceIdealLength();
+  const dragId = (drag && drag.kind === 'node') ? drag.id : null;
+  const idx = new Map(nodes.map((nd, i) => [nd.id, i]));
+  const fx = new Array(n).fill(0), fy = new Array(n).fill(0);
+
+  // 相邻集合：相连的节点允许更近，其余互斥更强 → 成簇分离，交叉更少
+  const adjacent = new Set();
+  for (const e of edges){
+    if (e.from !== e.to && idx.has(e.from) && idx.has(e.to)){
+      adjacent.add(e.from + '|' + e.to);
+      adjacent.add(e.to + '|' + e.from);
+    }
+  }
+
+  // ① 节点-节点：长程 1/d 斥力（分布均匀）+ 最近间距强分离（不扎堆）
+  for (let i = 0; i < n; i++){
+    for (let j = i + 1; j < n; j++){
+      const a = nodes[i], b = nodes[j];
+      let dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy);
+      if (d < 0.01){ dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy) || 0.01; }
+      const de = Math.max(d, ideal * 0.5);
+      const R = adjacent.has(a.id + '|' + b.id) ? FORCE_CFG.repAdj : FORCE_CFG.repNon;
+      let f = Math.min(R * ideal / de, 6);
+      if (d < ideal * FORCE_CFG.minSep) f += (ideal * FORCE_CFG.minSep - d) * FORCE_CFG.minSepK;
+      f = Math.min(f, 8);
+      const ux = dx / d, uy = dy / d;
+      fx[i] += ux * f; fy[i] += uy * f;
+      fx[j] -= ux * f; fy[j] -= uy * f;
+    }
+  }
+
+  // ② 边-边：非相邻边的中点互相排斥，引导边避开彼此（减少交叉）
+  const mids = [];
+  for (const e of edges){
+    if (e.from === e.to) continue;
+    const ia = idx.get(e.from), ib = idx.get(e.to);
+    if (ia === undefined || ib === undefined) continue;
+    mids.push({ ia, ib, x: (nodes[ia].x + nodes[ib].x) / 2, y: (nodes[ia].y + nodes[ib].y) / 2 });
+  }
+  const M = mids.length;
+  if (M >= 2){
+    const stride = M > 100 ? 2 : 1;             // 边很多时分帧算一半，保帧率
+    for (let i = 0; i < M; i++){
+      for (let j = i + 1; j < M; j++){
+        if (stride === 2 && (i + j + edgePairPhase) % 2 !== 0) continue;
+        const p = mids[i], q = mids[j];
+        if (p.ia === q.ia || p.ia === q.ib || p.ib === q.ia || p.ib === q.ib) continue;   // 相邻边跳过
+        let dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy);
+        if (d < 0.01 || d > ideal * FORCE_CFG.edgeRange) continue;
+        const f = Math.min(FORCE_CFG.edgeRep * ideal / Math.max(d, ideal * 0.3), 2.5);
+        const ux = dx / d, uy = dy / d;
+        fx[p.ia] += ux * f * 0.5; fy[p.ia] += uy * f * 0.5;
+        fx[p.ib] += ux * f * 0.5; fy[p.ib] += uy * f * 0.5;
+        fx[q.ia] -= ux * f * 0.5; fy[q.ia] -= uy * f * 0.5;
+        fx[q.ib] -= ux * f * 0.5; fy[q.ib] -= uy * f * 0.5;
+      }
+    }
+    edgePairPhase ^= 1;
+  }
+
+  // ③ 弹簧：连通节点拉回理想长度附近
+  for (const e of edges){
+    const ia = idx.get(e.from), ib = idx.get(e.to);
+    if (ia === undefined || ib === undefined || ia === ib) continue;
+    const a = nodes[ia], b = nodes[ib];
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01;
+    const f = clamp(FORCE_CFG.spring * (d - ideal), -4, 4);
+    const ux = dx / d, uy = dy / d;
+    fx[ia] += ux * f; fy[ia] += uy * f;
+    fx[ib] -= ux * f; fy[ib] -= uy * f;
+  }
+
+  // ④ 积分：向心力（参与退火，保证能完全静止）+ 可视区软边界（保持活跃）+ 阻尼 + 限速
+  const margin = 40 / view.scale;
+  const left = -view.x / view.scale + margin, top = -view.y / view.scale + margin;
+  const right = (cw - view.x) / view.scale - margin, bottom = (ch - view.y) / view.scale - margin;
+  let maxSpeed = 0;
+  for (let i = 0; i < n; i++){
+    const nd = nodes[i];
+    if (nd.fixed || nd.id === dragId){ forceVel.delete(nd.id); continue; }  // 固定/拖拽中的节点不受力
+    fx[i] += (cx - nd.x) * FORCE_CFG.center;
+    fy[i] += (cy - nd.y) * FORCE_CFG.center;
+    fx[i] *= forceScale; fy[i] *= forceScale;       // 退火：整体衰减所有力
+    if (nd.x < left)   fx[i] += (left - nd.x) * 0.08;
+    if (nd.x > right)  fx[i] -= (nd.x - right) * 0.08;
+    if (nd.y < top)    fy[i] += (top - nd.y) * 0.08;
+    if (nd.y > bottom) fy[i] -= (nd.y - bottom) * 0.08;
+    let F = Math.hypot(fx[i], fy[i]);
+    if (F > FORCE_CFG.maxF){ fx[i] *= FORCE_CFG.maxF / F; fy[i] *= FORCE_CFG.maxF / F; }
+    let v = forceVel.get(nd.id) || { vx: 0, vy: 0 };
+    const v0 = Math.hypot(v.vx, v.vy);
+    const dmp = v0 < 0.6 ? 0.5 : FORCE_CFG.damp;   // 低速平滑强阻尼：帮助布局完全静止且不振荡
+    v = { vx: v.vx * dmp + fx[i], vy: v.vy * dmp + fy[i] };
+    let sp = Math.hypot(v.vx, v.vy);
+    if (sp > FORCE_CFG.maxV){ v.vx *= FORCE_CFG.maxV / sp; v.vy *= FORCE_CFG.maxV / sp; sp = FORCE_CFG.maxV; }
+    nd.x += v.vx; nd.y += v.vy;
+    forceVel.set(nd.id, v);
+    if (sp > maxSpeed) maxSpeed = sp;
+  }
+  // 退火更新：先全力演化（≥240 帧）让布局充分展开，之后坚定退火直至静止
+  //（稠密图中残余力会让节点小幅振荡，冻结即可，位置偏差仅数像素、视觉无感）
+  if (dragId !== null){ forceScale = 1; }
+  else {
+    forceSteps++;
+    if (maxSpeed >= 6) forceSteps = 0;    // 只有接近位移上限的剧烈运动才重新计时
+    if (forceSteps <= 240){
+      forceScale = Math.min(1, forceScale + 0.08);   // 观察期/恢复期：全力
+    } else {
+      forceScale = forceScale * 0.85;                // 坚定退火 → 静止休眠（唤醒时复位为 1）
+    }
+  }
+  return maxSpeed;
+}
+
+/* ==================== 算法核心（纯函数模块） ====================
+   接口：computeOrder(graph, {start, kind}) / computeShortest(graph, {start, kind, target})
+   graph = { nodes, edges, directed }，普通值入参 —— 不读不写任何全局状态，
+   可直接用普通对象对拍测试（历史上此区域依赖全局，测试需正则提取+eval 桩环境）。
+   返回值同时携带算法结果与动画事件序列，由播放器（startTraversal 等）回放。 */
+function algAdj(graph, u){
+  const ids = new Set(graph.nodes.map(n => n.id));
+  const res = [];
+  for (const e of graph.edges){
+    if (e.from === u && e.to !== u && ids.has(e.to)) res.push({ to: e.to, edgeId: e.id });
+    else if (!graph.directed && e.to === u && e.from !== u && ids.has(e.from)) res.push({ to: e.from, edgeId: e.id });
+  }
+  return res;
+}
+function algAdjW(graph, u){
+  const ids = new Set(graph.nodes.map(n => n.id));
+  const res = [];
+  for (const e of graph.edges){
+    if (e.from === u && e.to !== u && ids.has(e.to)) res.push({ to: e.to, w: e.weight, edgeId: e.id });
+    else if (!graph.directed && e.to === u && e.from !== u && ids.has(e.from)) res.push({ to: e.from, w: e.weight, edgeId: e.id });
+  }
+  return res;
+}
+/* BFS / DFS：预计算访问顺序 + 搜索树 */
+function computeOrder(graph, opts){
+  const startId = opts.start, kind = opts.kind;
+  const order = [];
+  const parentEdge = new Map();
+  if (kind === 'bfs'){
+    const seen = new Set([startId]);        // BFS：入队时判重（起点随队首入序）
+    const q = [startId];
+    while (q.length){
+      const u = q.shift();
+      order.push(u);
+      for (const nb of algAdj(graph, u)){
+        if (!seen.has(nb.to)){
+          seen.add(nb.to);
+          parentEdge.set(nb.to, nb.edgeId);
+          q.push(nb.to);
+        }
+      }
+    }
+  } else {
+    const seen = new Set();                 // DFS：出栈时判重（起点不能预先加入，否则会被跳过！）
+    const st = [{ id: startId, via: null }];
+    while (st.length){
+      const { id, via } = st.pop();
+      if (seen.has(id)) continue;
+      seen.add(id);
+      order.push(id);
+      if (via !== null) parentEdge.set(id, via);
+      const nbs = algAdj(graph, id).filter(nb => !seen.has(nb.to));
+      for (let i = nbs.length - 1; i >= 0; i--) st.push({ id: nbs[i].to, via: nbs[i].edgeId });
+    }
+  }
+  return { kind, startId, targetId: null, order, parentEdge, step: 0, timer: null };
+}
+/* Dijkstra / SPFA：预计算事件序列，逐帧回放 */
+function computeShortest(graph, opts){
+  const startId = opts.start, kind = opts.kind, targetId = opts.target;
+  const n = graph.nodes.length;
+  const dist = new Map(graph.nodes.map(nd => [nd.id, Infinity]));
+  const prev = new Map();          // id -> { node, edgeId }
+  let events = [];
+  let negCycle = false, cycleSeed = null, negEnqCount = 0;
+  let truncated = false;           // 事件超限安全阀触发标记（结果可能不完整）
+  let negSelfLoop = null;          // { node, edgeId }：起点可达的负自环
+  const negativeWarn = graph.edges.some(e => e.weight < 0);
+  if (kind === 'dijkstra'){
+    // 含负权边时仍照常运行，但结果可能错误——保留现场，供课堂演示“为什么错”
+    const settled = new Set();
+    dist.set(startId, 0);
+    while (true){
+      let u = null, best = Infinity;
+      for (const nd of graph.nodes){
+        if (!settled.has(nd.id) && dist.get(nd.id) < best){ best = dist.get(nd.id); u = nd.id; }
+      }
+      if (u === null) break;
+      settled.add(u);
+      events.push({ type: 'settle', id: u, d: best });
+      if (targetId !== null && u === targetId) break;   // 终点已确定即可提前结束
+      for (const nb of algAdjW(graph, u)){
+        if (settled.has(nb.to)) continue;
+        const cand = best + nb.w;
+        if (cand < dist.get(nb.to)){
+          dist.set(nb.to, cand);
+          prev.set(nb.to, { node: u, edgeId: nb.edgeId });
+        }
+      }
+    }
+  } else {  // spfa
+    // 前置检查：起点可达的负自环本身就是负环（自环不进邻接表，主循环发现不了）
+    const ids = new Set(graph.nodes.map(nd => nd.id));
+    const reach = new Set([startId]);
+    const rq = [startId];
+    while (rq.length){
+      const u = rq.shift();
+      for (const nb of algAdj(graph, u)){
+        if (!reach.has(nb.to)){ reach.add(nb.to); rq.push(nb.to); }
+      }
+    }
+    const selfLoop = graph.edges.find(e => e.from === e.to && e.weight < 0 && ids.has(e.from) && reach.has(e.from));
+    if (selfLoop){
+      negCycle = true;
+      negSelfLoop = { node: selfLoop.from, edgeId: selfLoop.id };
+      cycleSeed = selfLoop.from;
+      events = [{ type: 'enqueue', id: startId, d: 0 }, { type: 'negcycle' }];
+    } else {
+      dist.set(startId, 0);
+      const queue = [startId];
+      const onQueue = new Set([startId]);
+      const enqCount = new Map();   // 标准 SPFA 判负环：统计每个点的入队次数
+      enqCount.set(startId, 1);
+      events.push({ type: 'enqueue', id: startId, d: 0 });
+      const cap = Math.max(4000, Math.min(120000, 20 * n * Math.max(1, graph.edges.length)));  // 随图规模缩放的安全阀
+      while (queue.length && !negCycle){
+        const u = queue.shift();
+        onQueue.delete(u);
+        events.push({ type: 'dequeue', id: u, d: dist.get(u) });
+        for (const nb of algAdjW(graph, u)){
+          if (negCycle) break;
+          const cand = dist.get(u) + nb.w;
+          if (cand < dist.get(nb.to)){
+            dist.set(nb.to, cand);
+            prev.set(nb.to, { node: u, edgeId: nb.edgeId });
+            events.push({ type: 'relax', id: nb.to, d: cand, via: nb.edgeId });
+            if (!onQueue.has(nb.to)){
+              queue.push(nb.to);
+              onQueue.add(nb.to);
+              const c = (enqCount.get(nb.to) || 0) + 1;
+              enqCount.set(nb.to, c);
+              events.push({ type: 'enqueue', id: nb.to, d: cand });
+              if (c >= n && !negCycle){     // 某个点入队次数达到 N → 存在负权环
+                negCycle = true;
+                cycleSeed = nb.to;
+                negEnqCount = c;
+              }
+            }
+          }
+        }
+        if (events.length > cap){ truncated = true; break; }   // 超大图安全阀（会明确提示）
+      }
+    }
+  }
+  // 负环：提取环上的节点与边用于红色高亮（动画完整呈现标准的“入队计数”过程）
+  let cycNodes = [], cycEdges = new Set();
+  if (negCycle && cycleSeed !== null){
+    if (negSelfLoop){
+      cycNodes = [negSelfLoop.node];
+      cycEdges = new Set([negSelfLoop.edgeId]);
+    } else {
+      cycNodes = extractNegativeCycle(prev, cycleSeed, n, cycEdges);
+    }
+    events.push({ type: 'negcycle' });
+  }
+  // 从终点回溯最短路径（存在负环时前驱链不可靠，直接跳过；步数上限防止死循环）
+  const pathEdges = new Set();
+  const pathNodes = [];
+  if (!negCycle && targetId !== null && Number.isFinite(dist.get(targetId))){
+    let cur = targetId;
+    pathNodes.push(cur);
+    let guard = 0;
+    while (cur !== startId && guard++ <= n){
+      const p = prev.get(cur);
+      if (!p) break;
+      pathEdges.add(p.edgeId);
+      cur = p.node;
+      pathNodes.push(cur);
+    }
+    pathNodes.reverse();
+  }
+  return {
+    kind, startId, targetId, events, dist, prev,
+    pathEdges, pathNodes, negCycle, negSelfLoop, cycNodes, cycEdges, negativeWarn, negCycleNode: cycleSeed, negEnqCount,
+    truncated,
+    visDist: new Map(graph.nodes.map(nd => [nd.id, Infinity])),  // 动画当前已知的距离
+    reached: new Set(), onQueueNow: new Set(), currentId: null, seq: [],
+    step: 0, timer: null, finished: false
+  };
+}
+/* 负环提取：沿前驱链走 n 步必落入环内（经典技巧），再顺链走一圈取节点与边 */
+function extractNegativeCycle(prev, seed, n, cycEdges){
+  let y = seed;
+  for (let i = 0; i < n && prev.has(y); i++) y = prev.get(y).node;
+  const cycNodes = [];
+  const seen = new Set();
+  let cur = y;
+  while (!seen.has(cur) && prev.has(cur)){
+    seen.add(cur);
+    cycNodes.push(cur);
+    const p = prev.get(cur);
+    cycEdges.add(p.edgeId);
+    cur = p.node;
+  }
+  return cycNodes;
+}
+/* ---- 播放器：三行适配器把活动全局组装成 graph，喂给纯算法 ---- */
+function startTraversal(startId, kind, targetId = null){
+  const graph = { nodes, edges, directed };
+  const t = (kind === 'bfs' || kind === 'dfs')
+    ? computeOrder(graph, { start: startId, kind })
+    : computeShortest(graph, { start: startId, kind, target: targetId });
+  if (!t) return;
+  clearTraversal();
+  traversal = t;
+  if (t.negativeWarn && t.kind === 'dijkstra') toast('图中含负权边：Dijkstra 结果可能错误，建议用 SPFA 对比验证');
+  if (t.events) applyShortestEvent(t.events[0]);
+  updateChip();
+  const last = t.events ? t.events.length - 1 : t.order.length - 1;
+  if (last > 0){
+    traversal.timer = setInterval(stepTraversal, intervalDelay());
+  } else {
+    t.finished = true;
+    finishNotice(t);
+    updateChip();
+  }
+}
+function finishNotice(t){
+  if (t.negCycle){
+    if (t.negSelfLoop) toast(`存在负自环：节点 ${nodeLabel(t.negSelfLoop.node)}，最短路不存在`);
+    else toast(`存在负权环：节点 ${nodeLabel(t.negCycleNode)} 入队达 ${t.negEnqCount} 次，最短路不存在`);
+  } else if (t.truncated){
+    toast('⚠ 演示事件超限已截断，结果可能不完整');
+  }
+}
+function stepTraversal(){
+  const t = traversal;
+  if (!t) return;
+  const last = t.events ? t.events.length - 1 : t.order.length - 1;
+  if (t.step < last){
+    t.step++;
+    if (t.events) applyShortestEvent(t.events[t.step]);
+  }
+  if (t.step >= last && t.timer){
+    clearInterval(t.timer);
+    t.timer = null;
+    t.finished = true;
+    finishNotice(t);
+  }
+  updateChip();
+}
+function applyShortestEvent(ev){
+  const t = traversal;
+  if (!ev) return;
+  if (ev.type === 'settle'){
+    t.reached.add(ev.id);
+    t.visDist.set(ev.id, ev.d);
+    t.currentId = ev.id;
+    t.seq.push(`${nodeLabel(ev.id)}(${fmtW(ev.d)})`);
+  } else if (ev.type === 'dequeue'){
+    t.reached.add(ev.id);
+    t.onQueueNow.delete(ev.id);              // 出队：队列光环消失（光环 = 当前在队列中）
+    t.visDist.set(ev.id, Math.min(t.visDist.get(ev.id), ev.d));
+    t.currentId = ev.id;
+    t.seq.push(nodeLabel(ev.id));
+  } else if (ev.type === 'relax'){
+    t.visDist.set(ev.id, ev.d);
+    t.flash = { edgeId: ev.via, at: performance.now() };
+  } else if (ev.type === 'enqueue'){
+    t.onQueueNow.add(ev.id);
+    if (Number.isFinite(ev.d)) t.visDist.set(ev.id, Math.min(t.visDist.get(ev.id), ev.d));
+  } else if (ev.type === 'negcycle'){
+    t.currentId = null;                      // 停止“当前处理”高亮，清空队列光环，准备显示负环报告
+    t.onQueueNow.clear();
+  }
+}
+function clearTraversal(){
+  if (traversal && traversal.timer) clearInterval(traversal.timer);
+  traversal = null;
+  chipEl.hidden = true;
+}
+function updateChip(){
+  const t = traversal;
+  if (!t){ chipEl.hidden = true; return; }
+  let s;
+  if (t.kind === 'dijkstra' || t.kind === 'spfa'){
+    const name = t.kind === 'dijkstra' ? 'Dijkstra' : 'SPFA';
+    const head = `${name}${t.negativeWarn ? '⚠' : ''} ${nodeLabel(t.startId)}${t.targetId !== null ? ' → ' + nodeLabel(t.targetId) : ''}`;
+    s = `${head} · ${t.kind === 'dijkstra' ? '已确定' : '出队'}：${t.seq.join('，') || '（无）'}`;
+    if (t.finished){
+      if (t.negCycle){
+        s = t.negSelfLoop
+          ? `${head} · 节点 ${nodeLabel(t.negSelfLoop.node)} 存在负自环（已红色标出），最短路不存在`
+          : `${head} · 节点 ${nodeLabel(t.negCycleNode)} 入队达 ${t.negEnqCount} 次（≥ 节点数 N）：存在负权环（已红色标出），最短路不存在`;
+      }
+      else if (t.targetId !== null){
+        const d = t.dist.get(t.targetId);
+        s = Number.isFinite(d)
+          ? `${head} · 最短距离 ${fmtW(d)} · 路径 ${t.pathNodes.map(nodeLabel).join(' → ')}`
+          : `${head} · 终点 ${nodeLabel(t.targetId)} 不可达`;
+      }
+      if (t.kind === 'dijkstra' && t.negativeWarn) s += ' ⚠含负权边，结果可能错误';
+      if (t.truncated) s += ' ⚠演示事件超限已截断，结果可能不完整';
+    }
+  } else {
+    const seq = t.order.slice(0, t.step + 1).map(id => nodeLabel(id));
+    s = `${t.kind.toUpperCase()} 从节点 ${nodeLabel(t.startId)} · 访问顺序：${seq.join(' → ')}` +
+        (t.step < t.order.length - 1 ? ' …' : '');
+  }
+  chipEl.hidden = false;
+  chipEl.textContent = s;
+}
+function isVisitedNode(id){
+  if (!traversal || !traversal.order) return false;
+  return traversal.order.slice(0, traversal.step + 1).includes(id);
+}
+function isTreeEdge(id){
+  if (!traversal || !traversal.order) return false;
+  for (let i = 0; i <= traversal.step; i++){
+    if (traversal.parentEdge.get(traversal.order[i]) === id) return true;
+  }
+  return false;
+}
+function visitIndexOf(id){
+  if (!traversal || !traversal.order) return -1;
+  const i = traversal.order.indexOf(id);
+  return (i >= 0 && i <= traversal.step) ? i : -1;
+}
+
+/* ==================== 信息面板 ==================== */
+/* 面板重建调度：推迟到事件循环空隙执行；若用户正在面板控件中编辑（焦点在
+   matrixWrap/edgeList 内），则继续等待——否则同步重建会吃掉 blur 后的第一次
+   点击（mousedown→blur→commit→DOM 重建→click 目标孤立失效）或毁掉刚打开的编辑器 */
+let panelRefreshQueued = false;
+function queuePanelRefresh(){
+  if (panelRefreshQueued) return;
+  panelRefreshQueued = true;
+  setTimeout(flushPanelRefresh, 0);
+}
+function flushPanelRefresh(){
+  const a = document.activeElement;
+  if (a && (matrixWrapEl.contains(a) || edgeListEl.contains(a))){
+    setTimeout(flushPanelRefresh, 0);   // 面板编辑进行中：暂缓重建
+    return;
+  }
+  panelRefreshQueued = false;
+  refreshPanel();
+}
+function refreshPanel(){
+  statsEl.textContent = `节点 ${nodes.length} 个 · 边 ${edges.length} 条 · ${directed ? '有向图' : '无向图'}`;
+  panelEl.classList.toggle('editing', panelEdit);
+  editTipEl.hidden = !panelEdit;
+  refreshMatrix();
+  refreshEdgeList();
+}
+function cellVal(i, j){
+  const ni = nodes[i], nj = nodes[j];
+  const e = directed
+    ? edges.find(e => e.from === ni.id && e.to === nj.id)
+    : edges.find(e => (e.from === ni.id && e.to === nj.id) || (e.from === nj.id && e.to === ni.id));
+  if (!e) return '0';
+  return showWeights ? fmtW(e.weight) : '1';
+}
+function degreeText(id){
+  let out = 0, inn = 0, und = 0;
+  for (const e of edges){
+    const loop = e.from === e.to;
+    if (e.from === id) out++;
+    if (e.to === id) inn++;
+    if (!directed && (e.from === id || e.to === id)) und += loop ? 2 : 1;  // 自环计 2 度
+  }
+  return directed ? `${out}/${inn}` : String(und);
+}
+function nodeOptions(selectedId){
+  return nodes.map(nd => `<option value="${nd.id}"${nd.id === selectedId ? ' selected' : ''}>${esc(nd.label)}</option>`).join('');
+}
+function refreshMatrix(){
+  let html = '';
+  if (nodes.length){
+    const degHead = directed ? '<th title="出度/入度">出/入</th>' : '<th title="度">度</th>';
+    html += '<table class="matrix"><tr><th></th>';
+    for (const nd of nodes){
+      html += panelEdit
+        ? `<th><input class="label-input" data-id="${nd.id}" value="${esc(nd.label)}" maxlength="12" title="直接输入可重命名节点"><button class="mini-btn" data-action="del-node" data-id="${nd.id}" title="删除该节点及其关联边">×</button></th>`
+        : `<th title="${esc(nd.label)}">${esc(nd.label)}</th>`;
+    }
+    html += degHead + '</tr>';
+    nodes.forEach((ni, i) => {
+      html += `<th title="${esc(ni.label)}">${esc(ni.label)}</th>`;
+      for (let j = 0; j < nodes.length; j++){
+        const v = cellVal(i, j);
+        html += panelEdit
+          ? `<td class="cell-edit" data-action="cell" data-i="${i}" data-j="${j}" title="点击编辑权重（0 或清空 = 删除边）">${esc(v)}</td>`
+          : `<td>${v}</td>`;
+      }
+      html += `<td style="background:#f8fafc">${degreeText(ni.id)}</td></tr>`;
+    });
+    html += '</table>';
+  } else {
+    html = '<div class="empty">空图</div>';
+  }
+  if (panelEdit) html += '<button class="tool-btn" data-action="add-node" style="margin-top:8px;width:100%">＋ 添加节点</button>';
+  matrixWrapEl.innerHTML = html;
+}
+function refreshEdgeList(){
+  let html = '';
+  if (edges.length){
+    html = '<ul class="edge-list">' + edges.map(e => {
+      const arrow = e.from === e.to ? '↺' : (directed ? '→' : '—');
+      if (!panelEdit){
+        return `<li><span>${esc(nodeLabel(e.from))} ${arrow} ${esc(nodeLabel(e.to))}</span><span class="w">权重 ${fmtW(e.weight)}</span></li>`;
+      }
+      return `<li class="edge-edit"><select data-role="from" data-id="${e.id}">${nodeOptions(e.from)}</select><span class="arrow">${arrow}</span><select data-role="to" data-id="${e.id}">${nodeOptions(e.to)}</select><input class="weight-input" data-id="${e.id}" value="${fmtW(e.weight)}" title="权重"><button class="mini-btn" data-action="del-edge" data-id="${e.id}" title="删除此边">×</button></li>`;
+    }).join('') + '</ul>';
+  } else {
+    html = '<div class="empty">暂无边</div>';
+  }
+  if (panelEdit && nodes.length >= 1){
+    html += `<div class="add-edge-row"><span>加边</span><select data-role="new-from">${nodeOptions()}</select><span class="arrow">${directed ? '→' : '—'}</span><select data-role="new-to">${nodeOptions()}</select><input class="weight-input" id="newEdgeW" value="1" title="权重"><button class="tool-btn" data-action="add-edge" style="padding:2px 10px;font-size:12px;">＋</button></div>`;
+  }
+  edgeListEl.innerHTML = html;
+}
+
+/* ==================== 面板快速编辑 ==================== */
+const panelEditToggleEl = document.getElementById('panelEditToggle');
+const editTipEl = document.getElementById('editTip');
+function findPairEdge(a, b){
+  return directed
+    ? edges.find(e => e.from === a && e.to === b)
+    : edges.find(e => (e.from === a && e.to === b) || (e.from === b && e.to === a));
+}
+function setCellWeight(i, j, raw){
+  const ni = nodes[i], nj = nodes[j];
+  if (!ni || !nj) return;
+  const rawStr = String(raw).trim();
+  const v = parseFloat(rawStr);
+  const existing = findPairEdge(ni.id, nj.id);
+  if (rawStr === '' || v === 0){          // 仅“清空或 0”表示删除边
+    if (existing){
+      commit(() => { edges = edges.filter(e => e !== existing); });
+      toast('已删除边');
+    } else {
+      queuePanelRefresh();   // 无变化，恢复单元格显示
+    }
+    return;
+  }
+  if (!Number.isFinite(v)){               // 其他非法输入：拒绝，绝不误删
+    toast('请输入有效数字');
+    queuePanelRefresh();
+    return;
+  }
+  if (existing && existing.weight === v){ queuePanelRefresh(); return; }
+  commit(() => {
+    if (existing) existing.weight = v;
+    else edges.push({ id: idEdge++, from: ni.id, to: nj.id, weight: v });
+  });
+  toast(existing ? '已更新权重' : '已添加边');
+}
+function beginCellEdit(td){
+  const i = +td.dataset.i, j = +td.dataset.j;
+  const cur = cellVal(i, j);
+  td.innerHTML = `<input class="matrix-cell-input" value="${cur === '0' ? '' : cur}" placeholder="0">`;
+  const inp = td.querySelector('input');
+  inp.focus();
+  inp.select();
+  let done = false;
+  const finishEdit = () => {
+    if (done) return;
+    done = true;
+    setCellWeight(i, j, inp.value);
+  };
+  inp.addEventListener('blur', finishEdit);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === 'Tab'){ e.preventDefault(); finishEdit(); }
+    else if (e.key === 'Escape'){ e.preventDefault(); done = true; inp.blur(); refreshPanel(); }
+  });
+}
+function addNodeCentered(){
+  const cw = canvas.clientWidth || 900, ch = canvas.clientHeight || 600;
+  const cx = (cw / 2 - view.x) / view.scale + (Math.random() * 80 - 40);
+  const cy = (ch / 2 - view.y) / view.scale + (Math.random() * 80 - 40);
+  const nd = addNodeAt({ x: cx, y: cy });
+  toast(`已添加节点 ${nd.label}`);
+}
+/* 面板内容会整体重建，因此用事件委托监听 */
+matrixWrapEl.addEventListener('click', e => {
+  if (!panelEdit || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const act = e.target.closest('[data-action]');
+  if (!act || !matrixWrapEl.contains(act)) return;
+  if (act.dataset.action === 'cell') beginCellEdit(act);
+  else if (act.dataset.action === 'del-node') deleteNode(Number(act.dataset.id));
+  else if (act.dataset.action === 'add-node') addNodeCentered();
+});
+matrixWrapEl.addEventListener('change', e => {
+  if (!panelEdit) return;
+  const inp = e.target;
+  if (!inp.classList || !inp.classList.contains('label-input')) return;
+  const nd = nodeById(Number(inp.dataset.id));
+  const v = inp.value.trim();
+  if (!nd || !v){ queuePanelRefresh(); return; }
+  if (v !== nd.label){
+    commit(() => { nd.label = v; });
+    toast('编号已更新');
+  }
+});
+edgeListEl.addEventListener('click', e => {
+  if (!panelEdit) return;
+  const act = e.target.closest('[data-action]');
+  if (!act) return;
+  if (act.dataset.action === 'del-edge'){ deleteEdge(Number(act.dataset.id)); return; }
+  if (act.dataset.action === 'add-edge'){
+    const fs = edgeListEl.querySelector('select[data-role="new-from"]');
+    const ts = edgeListEl.querySelector('select[data-role="new-to"]');
+    const wi = edgeListEl.querySelector('#newEdgeW');
+    if (!fs || !ts || fs.value === ''){ toast('请先添加节点'); return; }
+    const a = Number(fs.value), b = Number(ts.value);
+    const w = parseFloat(wi ? wi.value : '');
+    if (addEdge(a, b, Number.isFinite(w) ? w : 1)) toast('已添加边');   // 复用 store 的 addEdge（查重/撤销/通知一体）
+  }
+});
+edgeListEl.addEventListener('change', e => {
+  if (!panelEdit) return;
+  const t = e.target;
+  if (t.tagName === 'SELECT' && t.dataset.id){
+    const ed = edgeById(Number(t.dataset.id));
+    if (!ed) return;
+    const role = t.dataset.role;              // 'from' | 'to'
+    const old = ed[role];
+    const nv = Number(t.value);
+    if (nv === old || !nodes.some(nd => nd.id === nv)) return;
+    const tf = role === 'from' ? nv : ed.from, tt = role === 'to' ? nv : ed.to;
+    const dup = edges.some(x => x !== ed && (directed
+      ? (x.from === tf && x.to === tt)
+      : ((x.from === tf && x.to === tt) || (x.from === tt && x.to === tf))));
+    if (dup){
+      t.value = String(old);
+      toast('这两个节点之间已存在边');
+      return;
+    }
+    commit(() => { ed[role] = nv; });
+    toast('已修改边');
+  } else if (t.classList && t.classList.contains('weight-input')){
+    const ed = edgeById(Number(t.dataset.id));
+    if (!ed) return;
+    const v = parseFloat(t.value);
+    if (!Number.isFinite(v)){ toast('请输入有效数字'); queuePanelRefresh(); return; }
+    if (v !== ed.weight){
+      commit(() => { ed.weight = v; });
+      toast('权重已更新');
+    }
+  }
+});
+panelEditToggleEl.addEventListener('change', e => {
+  panelEdit = e.target.checked;
+  refreshPanel();
+  toast(panelEdit ? '快速编辑已开启：点击矩阵格 / 修改下方列表即可改图' : '快速编辑已锁定');
+});
+
+/* ==================== 渲染 ==================== */
+function rr(x, y, w, h, r){
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+  else {
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+}
+function drawGrid(cw, ch){
+  const step = 40 * view.scale;
+  if (step < 10) return;
+  const ox = ((view.x % step) + step) % step;
+  const oy = ((view.y % step) + step) % step;
+  ctx.lineWidth = 1;
+  for (let x = ox; x < cw; x += step){
+    ctx.strokeStyle = Math.abs((x - view.x) / step) % 5 < 0.01 ? '#e2e8f0' : '#eef2f7';
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke();
+  }
+  for (let y = oy; y < ch; y += step){
+    ctx.strokeStyle = Math.abs((y - view.y) / step) % 5 < 0.01 ? '#e2e8f0' : '#eef2f7';
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke();
+  }
+}
+function drawArrowHead(x, y, ang, color){
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-ARROW_LEN, 5);
+  ctx.lineTo(-ARROW_LEN, -5);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+function edgeStyle(e){
+  // SPFA 松弛闪亮
+  if (traversal && traversal.flash && traversal.flash.edgeId === e.id && performance.now() - traversal.flash.at < 300){
+    return { color: '#f59e0b', width: 4 };
+  }
+  // 负权环（红色高亮）
+  if (traversal && traversal.finished && traversal.cycEdges && traversal.cycEdges.has(e.id)){
+    return { color: '#dc2626', width: 4.5 };
+  }
+  // 最短路径（终点确定后）橙色高亮
+  if (traversal && traversal.finished && traversal.pathEdges && traversal.pathEdges.has(e.id)){
+    return { color: '#f97316', width: 4.5 };
+  }
+  if (isTreeEdge(e.id)) return { color: '#2563eb', width: 3.5 };
+  if (hover && hover.type === 'edge' && hover.id === e.id){
+    if (mode === 'delete') return { color: '#ef4444', width: 3.5 };
+    if (mode === 'edit')   return { color: '#f59e0b', width: 3.5 };
+    return { color: '#2563eb', width: 3.5 };
+  }
+  return { color: '#94a3b8', width: 2.25 };
+}
+function drawPill(x, y, text, border, color){
+  ctx.font = '600 12px system-ui, sans-serif';
+  const w = ctx.measureText(text).width;
+  const pw = w + 12, ph = 18;
+  rr(x - pw / 2, y - ph / 2, pw, ph, 9);
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.fill();
+  ctx.strokeStyle = border || '#cbd5e1';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = color || '#475569';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y + 0.5);
+}
+function edgeLabelPos(e){
+  if (e.from === e.to){
+    const n = nodeById(e.from);
+    return n ? { x: n.x, y: n.y - (NODE_R + 2 * LOOP_R) - 10 } : { x: 0, y: 0 };
+  }
+  const a = nodeById(e.from), b = nodeById(e.to);
+  return a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : { x: 0, y: 0 };
+}
+function drawEdge(e){
+  const st = edgeStyle(e);
+  if (e.from === e.to){
+    const n = nodeById(e.from);
+    if (!n) return;
+    const C = loopCenter(n);
+    const a0 = Math.PI / 2 + 0.5, a1 = Math.PI / 2 - 0.5;
+    ctx.beginPath();
+    ctx.arc(C.x, C.y, LOOP_R, a0, a1, false);
+    ctx.strokeStyle = st.color;
+    ctx.lineWidth = st.width;
+    ctx.stroke();
+    if (directed){
+      const ex = C.x + LOOP_R * Math.cos(a1), ey = C.y + LOOP_R * Math.sin(a1);
+      drawArrowHead(ex, ey, Math.atan2(Math.cos(a1), -Math.sin(a1)), st.color);
+    }
+    drawPill(C.x, C.y - LOOP_R - 12, fmtW(e.weight), st.color, st.color);
+    return;
+  }
+  const a = nodeById(e.from), b = nodeById(e.to);
+  if (!a || !b) return;
+  const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+  const ux = dx / d, uy = dy / d;
+  const ax = a.x + ux * (NODE_R + 2), ay = a.y + uy * (NODE_R + 2);
+  const tipX = b.x - ux * (NODE_R + 2), tipY = b.y - uy * (NODE_R + 2);
+  const endX = directed ? tipX - ux * ARROW_LEN * 0.7 : tipX;
+  const endY = directed ? tipY - uy * ARROW_LEN * 0.7 : tipY;
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(endX, endY);
+  ctx.strokeStyle = st.color;
+  ctx.lineWidth = st.width;
+  ctx.stroke();
+  if (directed) drawArrowHead(tipX, tipY, Math.atan2(uy, ux), st.color);
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  drawPill(mid.x, mid.y, fmtW(e.weight), st.color, st.color);
+}
+function drawNode(n){
+  const hov = hover && hover.type === 'node' && hover.id === n.id;
+  const isOrderKind = !!traversal && (traversal.kind === 'bfs' || traversal.kind === 'dfs');
+  const isShortest = !!traversal && (traversal.kind === 'dijkstra' || traversal.kind === 'spfa');
+  const visited = isVisitedNode(n.id);
+  const order = visitIndexOf(n.id);
+  const dist = isShortest ? traversal.visDist.get(n.id) : Infinity;
+  const reached = isShortest && Number.isFinite(dist);
+  const current = (isOrderKind && visited && order === traversal.step && traversal.timer)
+               || (isShortest && traversal.currentId === n.id && traversal.timer);
+  const onPath = isShortest && traversal.finished && traversal.pathNodes.includes(n.id);
+  const onCycle = isShortest && traversal.finished && traversal.cycNodes.includes(n.id);
+  let fill = '#ffffff', stroke = '#2563eb', labelColor = '#0f172a';
+  if (visited || reached){
+    fill = '#dbeafe';
+    if (current){ fill = '#2563eb'; labelColor = '#ffffff'; }
+  }
+  if (onPath && !current){ fill = '#ffedd5'; stroke = '#f97316'; }
+  if (onCycle){ fill = '#fee2e2'; stroke = '#dc2626'; }   // 负环节点红色高亮
+  if (hov && mode === 'delete'){ fill = '#fee2e2'; stroke = '#dc2626'; }
+  // 悬停光圈 / 链接预览目标光圈
+  let halo = null;
+  if (hov && mode !== 'delete') halo = mode === 'edit' ? 'rgba(245,158,11,.45)' : 'rgba(37,99,235,.4)';
+  if (hov && mode === 'delete') halo = 'rgba(239,68,68,.45)';
+  if (drag && drag.kind === 'link'){
+    const target = nodeAt(drag.cur);
+    if (drag.moved && target && target.id === n.id && target.id !== drag.from) halo = 'rgba(16,185,129,.55)';
+    if (n.id === drag.from) halo = 'rgba(16,185,129,.35)';
+  }
+  if (pendingShortest && n.id === pendingShortest.startId) halo = 'rgba(249,115,22,.65)';
+  if (halo){
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, NODE_R + 6, 0, Math.PI * 2);
+    ctx.strokeStyle = halo;
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+  // SPFA：在队列中的节点显示虚线光环
+  if (isShortest && !traversal.finished && traversal.onQueueNow.has(n.id)){
+    ctx.beginPath();
+    ctx.setLineDash([4, 3]);
+    ctx.arc(n.x, n.y, NODE_R + 6, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(249,115,22,.65)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.beginPath();
+  ctx.arc(n.x, n.y, NODE_R, 0, Math.PI * 2);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.strokeStyle = n.fixed ? '#1e40af' : stroke;
+  ctx.lineWidth = n.fixed ? 4.5 : 2.5;
+  ctx.stroke();
+  ctx.font = '600 14px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = labelColor;
+  const label = Array.from(String(n.label)).slice(0, 8).join('');   // 按码点截断，防 emoji 代理对被切半
+  ctx.fillText(label, n.x, n.y + 0.5);
+  // 遍历访问序号 / 最短路距离徽章
+  if (order >= 0){
+    const bx = n.x + NODE_R * 0.95, by = n.y - NODE_R * 0.95;
+    ctx.beginPath();
+    ctx.arc(bx, by, 9, 0, Math.PI * 2);
+    ctx.fillStyle = '#2563eb';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 10px system-ui, sans-serif';
+    ctx.fillText(String(order + 1), bx, by + 0.5);
+  } else if (isShortest && Number.isFinite(dist)){
+    drawPill(n.x + NODE_R * 0.95, n.y - NODE_R * 0.95, fmtW(dist), '#fdba74', '#c2410c');
+  }
+}
+function draw(){
+  requestAnimationFrame(draw);
+  const dpr = window.devicePixelRatio || 1;
+  const cw = stage.clientWidth, ch = stage.clientHeight;
+  if (cw === 0 || ch === 0) return;
+  if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(ch * dpr)){
+    canvas.width = Math.round(cw * dpr);
+    canvas.height = Math.round(ch * dpr);
+    canvas.style.width = cw + 'px';
+    canvas.style.height = ch + 'px';
+  }
+  // 查看模式：连续力导向布局（平移/缩放期间暂缓；持续低速 20 帧后休眠并保存）
+  if (mode === 'view' && nodes.length && !forceSleeping
+      && !(drag && drag.kind === 'pan') && performance.now() >= interactHoldUntil){
+    if (stepForce() < 0.5){
+      if (++calmFrames >= 20){ forceSleeping = true; calmFrames = 0; saveLocal(); }
+    } else {
+      calmFrames = 0;
+    }
+  } else {
+    calmFrames = 0;
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cw, ch);
+  drawGrid(cw, ch);
+  ctx.translate(view.x, view.y);
+  ctx.scale(view.scale, view.scale);
+  for (const e of edges) drawEdge(e);
+  // 画边预览
+  if (drag && drag.kind === 'link' && drag.moved){
+    const s = nodeById(drag.from);
+    if (s){
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(drag.cur.x, drag.cur.y);
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  for (const n of nodes) drawNode(n);
+}
+
+/* ==================== 导入 / 导出 / 示例 ==================== */
+function exportJSON(){
+  if (!nodes.length){ toast('当前是空图，没什么可导出的'); return; }
+  const blob = new Blob([serialize()], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'graph.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('已导出 graph.json');
+}
+function sanitizeImport(d){
+  if (!d || !Array.isArray(d.nodes) || !Array.isArray(d.edges)) return null;
+  const ids = new Set();
+  const newNodes = d.nodes.map((nd, i) => {
+    let id = Number(nd && nd.id);
+    if (!Number.isFinite(id) || ids.has(id)) id = i + 1;
+    while (ids.has(id)) id++;
+    ids.add(id);
+    return {
+      id,
+      label: Array.from(String(nd && nd.label !== undefined ? nd.label : i)).slice(0, 12).join('') || String(i),
+      x: Number(nd && nd.x) || 0,
+      y: Number(nd && nd.y) || 0
+    };
+  });
+  const has = id => newNodes.some(n => n.id === id);
+  let eid = 1;
+  const newEdges = d.edges
+    .filter(e => e && has(Number(e.from)) && has(Number(e.to)))
+    .map(e => ({
+      id: eid++,
+      from: Number(e.from),
+      to: Number(e.to),
+      weight: Number.isFinite(Number(e.weight)) ? Number(e.weight) : 1
+    }));
+  return {
+    directed: !!d.directed,
+    nodes: newNodes,
+    edges: newEdges,
+    idNode: Math.max(0, ...newNodes.map(n => n.id)) + 1,
+    idEdge: eid
+  };
+}
+function loadSample(pushU = true){
+  const mut = () => {
+    nodes = []; edges = [];
+    directed = false;
+    directedToggleEl.checked = false;
+    idNode = 1; idEdge = 1;
+    const cw = stage.clientWidth || 900, ch = stage.clientHeight || 600;
+    const cx = (cw / 2 - view.x) / view.scale, cy = (ch / 2 - view.y) / view.scale;
+    for (let i = 0; i < 6; i++){
+      nodes.push({
+        id: idNode++,
+        label: String(i),
+        x: cx + 160 * Math.cos(2 * Math.PI * i / 6),
+        y: cy + 160 * Math.sin(2 * Math.PI * i / 6)
+      });
+    }
+    // 注意：from/to 是节点 id（1..6），不是节点编号 label
+    const E = [[1, 2, 4], [1, 3, 2], [2, 3, 1], [2, 4, 5], [3, 4, 8], [3, 5, 10], [4, 5, 2], [5, 6, 6], [6, 1, 7]];
+    for (const [a, b, w] of E) edges.push({ id: idEdge++, from: a, to: b, weight: w });
+  };
+  if (pushU) commit(mut);
+  else { mut(); afterChange(); }
+  wakeForce();
+}
+
+/* ==================== 工具栏事件 ==================== */
+document.getElementById('layoutBtn').addEventListener('click', e => { setMode('view'); wakeForce(); e.target.blur(); });
+undoBtn.addEventListener('click', e => { doUndo(); e.target.blur(); });
+redoBtn.addEventListener('click', e => { doRedo(); e.target.blur(); });
+document.getElementById('sampleBtn').addEventListener('click', e => { loadSample(); toast('已加载示例图'); e.target.blur(); });
+document.getElementById('clearBtn').addEventListener('click', e => {
+  if (nodes.length || edges.length) clearAll();
+  e.target.blur();
+});
+document.getElementById('exportBtn').addEventListener('click', e => { exportJSON(); e.target.blur(); });
+document.getElementById('panelBtn').addEventListener('click', e => {
+  panelEl.classList.toggle('hidden');
+  e.target.blur();
+});
+document.getElementById('panelClose').addEventListener('click', () => panelEl.classList.add('hidden'));
+document.getElementById('wToggle').addEventListener('change', e => {
+  showWeights = e.target.checked;
+  refreshMatrix();
+});
+directedToggleEl.addEventListener('change', e => setDirected(e.target.checked));
+
+const importFileEl = document.getElementById('importFile');
+document.getElementById('importBtn').addEventListener('click', () => importFileEl.click());
+importFileEl.addEventListener('change', () => {
+  const f = importFileEl.files[0];
+  importFileEl.value = '';
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = sanitizeImport(JSON.parse(r.result));
+      if (!d){ toast('导入失败：格式不正确'); return; }
+      pushUndo();
+      applyData(d);
+      toast(`已导入：${nodes.length} 个节点，${edges.length} 条边`);
+    } catch (err){ toast('导入失败：JSON 解析错误'); }
+  };
+  r.readAsText(f);
+});
+
+/* ==================== 悬浮编辑器事件 ==================== */
+document.getElementById('editorOk').addEventListener('click', commitEditor);
+const cancelBtn = document.getElementById('editorCancel');
+cancelBtn.addEventListener('pointerdown', e => e.preventDefault()); // 避免先触发 input 失焦提交
+cancelBtn.addEventListener('click', closeEditor);
+editorInputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); commitEditor(); }
+  else if (e.key === 'Escape'){ e.preventDefault(); closeEditor(); }
+});
+editorInputEl.addEventListener('blur', () => {
+  // 画布上的 pointerdown 已先主动提交；此处兜底处理点其他位置的情况
+  if (editorCtx) commitEditor();
+});
+
+/* ==================== 键盘快捷键 ==================== */
+window.addEventListener('keydown', e => {
+  const tag = e.target && e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;  // 输入控件内不响应全局快捷键
+  if (e.key === 'Escape'){ pendingShortest = null; clearTraversal(); return; }
+  if (e.ctrlKey || e.metaKey){
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey){ e.preventDefault(); doUndo(); }
+    else if (k === 'y' || (k === 'z' && e.shiftKey)){ e.preventDefault(); doRedo(); }
+    return;
+  }
+  if (e.altKey) return;
+  if (e.key === '1') setMode('view');
+  else if (e.key === '2') setMode('draw');
+  else if (e.key === '3') setMode('edit');
+  else if (e.key === '4') setMode('delete');
+});
+
+/* ==================== 启动 ==================== */
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  if (mode !== 'view' || !nodes.length) return;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(wakeForce, 120);   // 窗口尺寸变化后重新居中布局
+});
+if (!loadLocal()) loadSample(false);
+setMode('view');                              // 进入查看模式，节点自动居中布局
+updateUndoBtns();
+refreshPanel();
+requestAnimationFrame(draw);
+
+})();
+</script>
+</body>
+</html>
